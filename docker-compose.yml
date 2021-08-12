@@ -1,0 +1,53 @@
+version: '3'
+services:
+  eureka-server:
+    build:
+      context: ./eureka-server
+      dockerfile: Dockerfile
+    ports:
+      - 8900:8900
+  currency-conversion-service:
+    build:
+      context: ./currency-conversion-service
+      dockerfile: Dockerfile
+    environment:
+      - SERVER_PORT=8100
+      - EUREKA_SERVER=http://eureka-server:8900/eureka
+    depends_on:
+      - eureka-server
+      - currency-exchange-service
+    ports:
+      - 8100:8100
+    restart: on-failure
+  currency-exchange-service:
+    build:
+      context: ./currency-exchange-service
+      dockerfile: Dockerfile
+    ports:
+      - 8000:8000
+    environment:
+      - SERVER_PORT=8000
+      - EUREKA_SERVER=http://eureka-server:8900/eureka
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_DATABASE=database
+    depends_on:
+      - db
+      - eureka-server
+    restart: on-failure
+  db:
+    container_name: db
+    image: mysql
+    ports:
+      - 3306:3306
+    volumes:
+      - ./data.sql:/docker-entrypoint-initdb.d/init-data.sql:ro
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+      MYSQL_USER: "user"
+      MYSQL_PASSWORD: "password"
+      MYSQL_DATABASE: "database"
+    healthcheck:
+      test: [ "CMD", "mysqladmin" ,"ping", "-h", "localhost" ]
+      timeout: 20s
+      retries: 10
